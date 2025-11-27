@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # 脚本名称: Linux DNS 极致净化与安全加固 (Systemd-Resolved + DoT) v2.0
-# 功能说明: 
-#   1. [救援] 临时修复 DNS 确保脚本能下载依赖
-#   2. [智能] 等待 apt 锁释放，防止安装失败
-#   3. [备份] 自动备份原配置文件
-#   4. [加固] 强制接管 DNS，开启 DoT 加密，屏蔽 Cloud-init/DHCP
 # ==============================================================================
 
 set -euo pipefail
@@ -52,7 +47,6 @@ check_env() {
         exit 1
     fi
     
-    # 检测关键工具 chattr (e2fsprogs)
     if ! command -v chattr &> /dev/null; then
         log_warn "未找到 chattr 命令，尝试安装..."
         apt-get update -y && apt-get install -y e2fsprogs || true
@@ -62,18 +56,14 @@ check_env() {
 # --- 2. 网络救援 (保证 apt 可用) ---
 rescue_network() {
     log "正在检查网络连通性..."
-    # 尝试 ping google dns，如果失败，说明当前 DNS 可能已坏
     if ! ping -c 1 -W 2 8.8.8.8 &> /dev/null; then
         log_warn "网络连接似乎不通畅，无需担心，正在尝试临时修复..."
     fi
     
-    # 无论通不通，为了保证接下来的 apt install 100% 成功，强制临时写入一个 DNS
-    # 先解锁
     if lsattr "/etc/resolv.conf" 2>/dev/null | grep -q "i"; then
         chattr -i "/etc/resolv.conf" || true
     fi
     
-    # 备份并写入临时 DNS
     if [[ ! -f "/etc/resolv.conf.bak" ]]; then
         cp -L /etc/resolv.conf /etc/resolv.conf.bak 2>/dev/null || true
         log_info "原 /etc/resolv.conf 已备份为 .bak"
@@ -97,7 +87,6 @@ disable_cloud_init() {
 clean_conflicts() {
     log "正在清理旧的 DNS 干扰..."
 
-    # DHCP 客户端
     local dhclient_conf="/etc/dhcp/dhclient.conf"
     if [[ -f "$dhclient_conf" ]]; then
         if ! grep -q "ignore domain-name-servers;" "$dhclient_conf"; then
@@ -108,20 +97,17 @@ clean_conflicts() {
         fi
     fi
 
-    # 等待 apt 锁释放 (防止后台更新导致脚本失败)
     while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
         log_warn "等待 apt 锁释放 (后台可能正在自动更新)..."
         sleep 2
     done
 
-    # 卸载 resolvconf
     if dpkg -s resolvconf &> /dev/null; then
         export DEBIAN_FRONTEND=noninteractive
         apt-get remove -y resolvconf > /dev/null
         log "${GREEN}✅ 已卸载 resolvconf。${NC}"
     fi
     
-    # 禁用 if-up 脚本
     if [[ -f "/etc/network/if-up.d/resolved" ]]; then
         chmod -x "/etc/network/if-up.d/resolved"
     fi
@@ -131,22 +117,18 @@ clean_conflicts() {
 deploy_dns() {
     log "正在配置 Systemd-Resolved (DoT)..."
 
-    # 安装
     if ! command -v resolvectl &> /dev/null; then
         apt-get update -y > /dev/null
         apt-get install -y systemd-resolved > /dev/null
     fi
 
-    # 写入配置
     mkdir -p /etc/systemd/resolved.conf.d
     echo -e "${CONF_CONTENT}" > /etc/systemd/resolved.conf.d/99-hardening.conf
     
-    # 确保服务未被屏蔽
     systemctl unmask systemd-resolved >/dev/null 2>&1 || true
     systemctl enable systemd-resolved
     systemctl start systemd-resolved
 
-    # 替换 /etc/resolv.conf
     log "正在建立软链接..."
     rm -f /etc/resolv.conf
     ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
@@ -158,7 +140,6 @@ deploy_dns() {
         exit 1
     fi
 
-    # 重启服务
     systemctl daemon-reload
     systemctl restart systemd-resolved
     resolvectl flush-caches || true
@@ -171,7 +152,6 @@ verify() {
     status=$(LC_ALL=C resolvectl status)
     local pass=true
 
-    # 验证 DoT
     if echo "$status" | grep -qE "DNSOverTLS: yes|\+DNSOverTLS"; then
         echo -e "DNS 加密 (DoT):  ${GREEN}[已开启]${NC}"
     else
@@ -179,7 +159,6 @@ verify() {
         pass=false
     fi
 
-    # 验证服务器
     if echo "$status" | grep -q "8.8.8.8"; then
         echo -e "DNS 服务器:      ${GREEN}[配置正确]${NC} (Google/Cloudflare)"
     else
@@ -198,7 +177,7 @@ verify() {
 main() {
     echo -e "\n>>> 开始执行 DNS 一键加固脚本 (v2.0)..."
     check_env
-    rescue_network     # 新增：网络救援
+    rescue_network
     disable_cloud_init
     clean_conflicts
     deploy_dns
