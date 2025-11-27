@@ -31,7 +31,7 @@
 
 ### 一键安装脚本 (推荐)
 
-请直接复制下方命令运行：
+为了确保脚本在所有环境下（包括文件格式差异）都能完美运行，请使用以下命令：
 
 ```bash
-bash <(curl -sL [https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh](https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh))
+curl -sL [https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh](https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh) | tr -d '\r' | bash
