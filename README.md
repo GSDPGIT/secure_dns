@@ -29,9 +29,9 @@
 * **OS**: Debian 10/11/12 或 Ubuntu 20.04/22.04/24.04
 * **User**: Root 用户或具有 Sudo 权限
 
-### 一键安装脚本
+### 一键安装脚本 (推荐)
 
-可以使用 `curl` 或 `wget` 直接运行：
+请直接复制下方命令运行：
 
 ```bash
 bash <(curl -sL [https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh](https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh))
