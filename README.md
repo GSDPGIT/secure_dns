@@ -34,4 +34,4 @@
 为了防止脚本格式错误，请直接复制下方命令运行：
 
 ```bash
-curl -sL [https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh](https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh) | tr -d '\r' | bash
+curl -sL https://raw.githubusercontent.com/GSDPGIT/secure_dns/main/secure_dns.sh | tr -d '\r' | bash
